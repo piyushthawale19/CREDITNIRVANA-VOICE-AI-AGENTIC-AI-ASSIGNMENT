@@ -488,7 +488,7 @@ export function getCallById(id) {
 }
 
 export function getCall(id, userId) {
-  return mapCall(db.prepare('SELECT * FROM calls WHERE id = ? AND user_id = ?').get(id, userId))
+  return mapCall(db.prepare('SELECT * FROM calls WHERE id = ? AND (user_id = ? OR is_demo = 1)').get(id, userId))
 }
 
 export function getCallByProviderId(providerCallId) {
@@ -496,7 +496,7 @@ export function getCallByProviderId(providerCallId) {
 }
 
 export function listCalls(userId, { botId, status, from, to, isDemo } = {}) {
-  let query = 'SELECT * FROM calls WHERE user_id = ?'
+  let query = 'SELECT * FROM calls WHERE (user_id = ? OR is_demo = 1)'
   const params = [userId]
 
   if (botId && botId !== 'all') {

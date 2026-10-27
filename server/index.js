@@ -363,7 +363,7 @@ app.post('/api/calls/:id/hangup', auth, async (req, res) => {
 
 // Stream call recording with Range support for browser <audio> tags
 app.get('/api/calls/:id/recording', auth, (req, res) => {
-  const callRow = db.prepare('SELECT * FROM calls WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id)
+  const callRow = db.prepare('SELECT * FROM calls WHERE id = ? AND (user_id = ? OR is_demo = 1)').get(req.params.id, req.user.id)
   if (!callRow) return res.status(404).json({ error: 'Call not found.' })
   const filePath = resolveRecordingPath(callRow.recording_path)
   if (!filePath) {
@@ -404,7 +404,7 @@ app.get('/api/calls/:id/recording', auth, (req, res) => {
 
 // Download recording file
 app.get('/api/calls/:id/recording/download', auth, (req, res) => {
-  const callRow = db.prepare('SELECT * FROM calls WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id)
+  const callRow = db.prepare('SELECT * FROM calls WHERE id = ? AND (user_id = ? OR is_demo = 1)').get(req.params.id, req.user.id)
   if (!callRow) return res.status(404).json({ error: 'Call not found.' })
   const filePath = resolveRecordingPath(callRow.recording_path)
   if (!filePath) {
