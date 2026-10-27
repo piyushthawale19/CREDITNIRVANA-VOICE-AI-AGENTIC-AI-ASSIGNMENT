@@ -4,7 +4,7 @@ import {
   ArrowRight, Check, CreditCard, Headphones, Loader2, Mic, Pause, PhoneCall, PhoneOff, Radio, RefreshCw, RotateCcw, Send,
   Settings, ShieldAlert, Square, Volume2, WalletCards,
 } from 'lucide-react'
-import { api, apiUrl } from '../api'
+import { api, apiUrl, getStoredToken } from '../api'
 import type { Bot, Call, IntegrationStatus, Message, RespondResult, Session } from '../types'
 import { Badge, ErrorBanner, LoadingCard, PageHead, botLabel, formatDate, formatDateTime, formatDuration, money, splitFlags } from '../ui'
 
@@ -130,10 +130,14 @@ export default function Playground({ status: initialStatus }: { status: Integrat
     if (!voiceAvailable || !bot) return
     setPhase('speaking')
     try {
+      const token = getStoredToken()
       const response = await fetch(apiUrl('/api/voice/speak'), {
         method: 'POST',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          ...(token ? { authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ text, languageCode: bot.config.language, speaker: bot.config.speaker }),
       })
       if (!response.ok) {
@@ -191,10 +195,16 @@ export default function Playground({ status: initialStatus }: { status: Integrat
         setPhase('processing')
         setVoiceNote('Transcribing with Sarvam…')
         try {
+          const token = getStoredToken()
           const response = await fetch(apiUrl('/api/voice/transcribe'), {
             method: 'POST',
             credentials: 'include',
-            headers: { 'content-type': cleanMime, 'x-filename': 'voice.webm', 'x-language': bot?.config.language || 'en-IN' },
+            headers: {
+              'content-type': cleanMime,
+              'x-filename': 'voice.webm',
+              'x-language': bot?.config.language || 'en-IN',
+              ...(token ? { authorization: `Bearer ${token}` } : {})
+            },
             body: blob,
           })
           const data = await response.json().catch(() => ({}))
