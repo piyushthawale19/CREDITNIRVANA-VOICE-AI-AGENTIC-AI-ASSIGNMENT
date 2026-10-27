@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
-  ArrowRight, Check, CreditCard, Headphones, Loader2, Mic, Pause, PhoneCall, PhoneOff, Radio, RefreshCw, RotateCcw, Send,
-  Settings, ShieldAlert, Square, Volume2, WalletCards,
+  ArrowRight, Check, CreditCard, Headphones, Loader2, Mic, Pause, PhoneCall, PhoneOff, Play, Radio, RefreshCw, RotateCcw, Send,
+  Settings, ShieldAlert, Square, Volume2, VolumeX, WalletCards,
 } from 'lucide-react'
 import { api, apiUrl, getStoredToken } from '../api'
 import type { Bot, Call, IntegrationStatus, Message, RespondResult, Session } from '../types'
@@ -121,14 +121,48 @@ export default function Playground({ status: initialStatus }: { status: Integrat
     }
   }
 
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false)
+  const lastSpokenText = useRef<string>('')
+
   function stopPlayback() {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0 }
-    if (audioUrl.current) { URL.revokeObjectURL(audioUrl.current); audioUrl.current = null }
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+      audioRef.current = null
+    }
+    if (audioUrl.current) {
+      URL.revokeObjectURL(audioUrl.current)
+      audioUrl.current = null
+    }
+    setIsAudioPlaying(false)
+    if (phase === 'speaking') {
+      setPhase(mode === 'voice' ? 'listening' : 'idle')
+    }
+  }
+
+  function toggleAudioPlayback() {
+    if (!audioRef.current) {
+      if (lastSpokenText.current) speak(lastSpokenText.current)
+      return
+    }
+    if (audioRef.current.paused) {
+      audioRef.current.play().then(() => {
+        setIsAudioPlaying(true)
+        setPhase('speaking')
+      }).catch(err => {
+        console.warn('Resume failed:', err)
+      })
+    } else {
+      audioRef.current.pause()
+      setIsAudioPlaying(false)
+    }
   }
 
   async function speak(text: string) {
-    if (!voiceAvailable || !bot) return
+    if (!voiceAvailable || !bot || !text) return
+    lastSpokenText.current = text
     setPhase('speaking')
+    setIsAudioPlaying(true)
     try {
       const token = getStoredToken()
       const response = await fetch(apiUrl('/api/voice/speak'), {
@@ -145,15 +179,30 @@ export default function Playground({ status: initialStatus }: { status: Integrat
         throw new Error(data.error || `Sarvam text-to-speech failed (${response.status}).`)
       }
       const blob = await response.blob()
-      stopPlayback()
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+      if (audioUrl.current) {
+        URL.revokeObjectURL(audioUrl.current)
+      }
       const url = URL.createObjectURL(blob)
       audioUrl.current = url
       const audio = new Audio(url)
       audioRef.current = audio
-      audio.onended = () => { setPhase('listening'); setVoiceNote('Reply finished. Your turn — hold the mic or type.') }
+      audio.onended = () => {
+        setIsAudioPlaying(false)
+        setPhase(mode === 'voice' ? 'listening' : 'idle')
+        setVoiceNote(mode === 'voice' ? 'Reply finished. Your turn — hold the mic or type.' : '')
+      }
+      audio.onerror = () => {
+        setIsAudioPlaying(false)
+        setPhase(mode === 'voice' ? 'listening' : 'idle')
+      }
       await audio.play()
     } catch (err) {
-      setPhase('listening')
+      setIsAudioPlaying(false)
+      setPhase(mode === 'voice' ? 'listening' : 'idle')
       setError(err instanceof Error ? err.message : 'Audio playback failed. The text reply is preserved.')
     }
   }
@@ -479,17 +528,41 @@ export default function Playground({ status: initialStatus }: { status: Integrat
           : <>
 
             <div className="transcript" aria-live="polite">
-              {session.transcript.map(message => <Bubble key={message.id} message={message} botName={bot.name} />)}
+              {session.transcript.map(message => <Bubble key={message.id} message={message} botName={bot.name} onSpeak={voiceAvailable ? () => speak(message.text) : undefined} isSpeaking={isAudioPlaying && lastSpokenText.current === message.text} />)}
               {phase === 'processing' && <div className="message agent"><div className="message-mark">N</div><div className="bubble typing"><Loader2 size={14} className="spin" /> Thinking…</div></div>}
-              {phase === 'speaking' && <div className="voice-indicator"><Volume2 size={14} /> Agent speaking via Sarvam</div>}
+              {phase === 'speaking' && (
+                <div className="voice-indicator" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Volume2 size={14} className={isAudioPlaying ? 'pulse' : ''} />
+                    {isAudioPlaying ? 'Agent speaking via Sarvam…' : 'Agent audio paused'}
+                  </span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button type="button" className="icon-btn small" onClick={toggleAudioPlayback} title={isAudioPlaying ? 'Pause audio' : 'Resume audio'}>
+                      {isAudioPlaying ? <Pause size={13} /> : <Play size={13} />}
+                    </button>
+                    <button type="button" className="icon-btn small danger" onClick={stopPlayback} title="Stop audio">
+                      <VolumeX size={13} />
+                    </button>
+                  </div>
+                </div>
+              )}
               <div ref={transcriptEnd} />
             </div>
             {(voiceNote || recording) && <div className="voice-note">{recording ? <span className="recording-dot" /> : <Volume2 size={13} />}{recording ? 'Recording… tap stop to transcribe' : voiceNote}</div>}
             <div className="composer">
-              {mode === 'voice' && <button className={`btn ${recording ? 'danger' : ''}`} onClick={recording ? stopRecording : beginRecording} disabled={!voiceAvailable || phase === 'speaking' || completed} aria-label={recording ? 'Stop recording' : 'Start recording'}>{recording ? <Square size={15} /> : <Mic size={15} />}{recording ? 'Stop' : 'Speak'}</button>}
+              {mode === 'voice' && <button className={`btn ${recording ? 'danger' : ''}`} onClick={recording ? stopRecording : beginRecording} disabled={!voiceAvailable || isAudioPlaying || completed} aria-label={recording ? 'Stop recording' : 'Start recording'}>{recording ? <Square size={15} /> : <Mic size={15} />}{recording ? 'Stop' : 'Speak'}</button>}
               <input className="input" value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send() } }} placeholder={completed ? 'This session is completed. Reset to start again.' : mode === 'voice' ? 'Transcribed customer speech appears here — or type an objection…' : 'Type the customer’s reply or objection…'} disabled={completed} aria-label="Customer message" />
               <button className="btn primary" onClick={() => send()} disabled={sending || !input.trim() || completed} aria-label="Send message">{sending ? <RefreshCw size={14} className="spin" /> : <Send size={14} />}</button>
-              {phase === 'speaking' && <button className="btn" onClick={stopPlayback} aria-label="Stop audio"><Pause size={14} /></button>}
+              {(phase === 'speaking' || audioRef.current) && (
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button className="btn" type="button" onClick={toggleAudioPlayback} title={isAudioPlaying ? 'Pause audio' : 'Resume audio'} aria-label={isAudioPlaying ? 'Pause audio' : 'Resume audio'}>
+                    {isAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
+                  </button>
+                  <button className="btn danger" type="button" onClick={stopPlayback} title="Stop audio" aria-label="Stop audio">
+                    <VolumeX size={14} />
+                  </button>
+                </div>
+              )}
             </div>
           </>}
       </div>
@@ -504,7 +577,24 @@ export default function Playground({ status: initialStatus }: { status: Integrat
             <div className="mini-stat"><span>Outcome</span><strong>{session ? <Badge value={session.outcome} /> : '—'}</strong></div>
             <div className="mini-stat"><span>Compliance flags</span><strong>{flags.compliance.length}</strong></div>
             <div className="mini-stat"><span>Review flags</span><strong>{flags.review.length}</strong></div>
-            {voiceAvailable && session && <button className="btn full mt-s" onClick={() => { const last = [...session.transcript].reverse().find(message => message.speaker === 'agent'); if (last) speak(last.text) }} disabled={phase === 'speaking'}><Volume2 size={14} /> Replay last reply</button>}
+            {voiceAvailable && session && (
+              <button
+                type="button"
+                className={`btn full mt-s ${isAudioPlaying ? 'primary' : ''}`}
+                onClick={() => {
+                  const last = [...session.transcript].reverse().find(message => message.speaker === 'agent')
+                  if (!last) return
+                  if (audioRef.current && lastSpokenText.current === last.text) {
+                    toggleAudioPlayback()
+                  } else {
+                    speak(last.text)
+                  }
+                }}
+              >
+                {isAudioPlaying ? <Pause size={14} /> : <Volume2 size={14} />}
+                {isAudioPlaying ? 'Pause speaking' : 'Replay last reply'}
+              </button>
+            )}
             {session && <div className="button-row stretch">
               <button className="btn" onClick={resetSession}><RotateCcw size={14} /> Reset</button>
               <button className="btn primary" onClick={complete} disabled={completing || completed}><Check size={14} /> {completed ? 'Saved' : completing ? 'Saving…' : 'Complete & save'}</button>
@@ -557,13 +647,41 @@ export default function Playground({ status: initialStatus }: { status: Integrat
 }
 
 
-function Bubble({ message, botName }: { message: Message; botName: string }) {
+function Bubble({
+  message,
+  botName,
+  onSpeak,
+  isSpeaking,
+}: {
+  message: Message
+  botName: string
+  onSpeak?: () => void
+  isSpeaking?: boolean
+}) {
   const agent = message.speaker === 'agent'
-  return <div className={`message ${agent ? 'agent' : 'customer'}`}>
-    <div className="message-mark">{agent ? 'N' : 'C'}</div>
-    <div className="message-body">
-      <div className="bubble">{message.text}</div>
-      <span className="message-time">{agent ? `${botName} · AI assistant` : 'Customer'} · {formatDateTime(message.timestamp)}{message.engine === 'deterministic' ? ' · simulation' : message.engine === 'sarvam-llm' ? ' · Sarvam LLM' : ''}</span>
+  return (
+    <div className={`message ${agent ? 'agent' : 'customer'}`}>
+      <div className="message-mark">{agent ? 'N' : 'C'}</div>
+      <div className="message-body">
+        <div className="bubble">
+          {message.text}
+          {agent && onSpeak && (
+            <button
+              type="button"
+              className="icon-btn tiny"
+              style={{ marginLeft: '8px', verticalAlign: 'middle', opacity: 0.8 }}
+              onClick={onSpeak}
+              title={isSpeaking ? 'Speaking… click to re-listen' : 'Listen to this reply'}
+            >
+              <Volume2 size={13} className={isSpeaking ? 'pulse' : ''} />
+            </button>
+          )}
+        </div>
+        <span className="message-time">
+          {agent ? `${botName} · AI assistant` : 'Customer'} · {formatDateTime(message.timestamp)}
+          {message.engine === 'deterministic' ? ' · simulation' : message.engine === 'sarvam-llm' ? ' · Sarvam LLM' : ''}
+        </span>
+      </div>
     </div>
-  </div>
+  )
 }
