@@ -20,7 +20,7 @@ export default function Dashboard({ user, status }: { user: User; status: Integr
     Promise.all([
       api<Bot[]>('/api/bots'),
       api<Session[]>('/api/sessions'),
-      api<Call[]>('/api/calls').catch(() => []),
+      api<Call[]>('/api/calls?mine=true').catch(() => []),
     ])
       .then(([botData, sessionData, callData]) => {
         setBots(botData)
@@ -32,6 +32,10 @@ export default function Dashboard({ user, status }: { user: User; status: Integr
   }
   useEffect(load, [])
 
+  const userCalls = useMemo(() => {
+    return calls.filter(c => (c.userId ? c.userId === user.id : true))
+  }, [calls, user.id])
+
   const metrics = useMemo(() => {
     const loan = sessions.filter(session => session.botId === 'loan')
     const insurance = sessions.filter(session => session.botId === 'insurance')
@@ -39,9 +43,9 @@ export default function Dashboard({ user, status }: { user: User; status: Integr
     const commitments = sessions.filter(session => session.commitmentDate || ['proposed_settlement', 'full_repayment_commitment', 'quote_accepted'].includes(session.outcome))
     const completed = sessions.filter(session => session.completedAt)
     const lastAmount = sessions.find(session => session.finalQuotedAmount)?.finalQuotedAmount
-    const recordedCalls = calls.filter(c => c.hasRecording)
+    const recordedCalls = userCalls.filter(c => c.hasRecording)
     return { loan, insurance, converted, commitments, completed, lastAmount, recordedCalls }
-  }, [sessions, calls])
+  }, [sessions, userCalls])
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -52,7 +56,7 @@ export default function Dashboard({ user, status }: { user: User; status: Integr
       title={`${greeting}, ${user.name.split(' ')[0]}.`}
       subtitle="Bot readiness, real session volume and the measurable next step recorded for each conversation."
       actions={<>
-        <Link className="btn" to="/calls"><PhoneCall size={15} /> Phone calls ({calls.length})</Link>
+        <Link className="btn" to="/calls"><PhoneCall size={15} /> Phone calls ({userCalls.length})</Link>
         <Link className="btn" to="/history"><History size={15} /> Review sessions</Link>
         <Link className="btn primary" to="/bots"><Plus size={15} /> New test session</Link>
       </>}
@@ -74,7 +78,7 @@ export default function Dashboard({ user, status }: { user: User; status: Integr
     {loading ? <div className="grid four"><LoadingCard /><LoadingCard /><LoadingCard /><LoadingCard /></div> : <>
       <div className="grid kpis" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
         <Stat label="Total test sessions" value={sessions.length} note={`${metrics.completed.length} completed`} icon={<Activity size={16} />} />
-        <Stat label="Phone calls placed" value={calls.length} note={`${metrics.recordedCalls.length} with dual-channel recording`} icon={<PhoneCall size={16} />} tone="blue" />
+        <Stat label="Phone calls placed" value={userCalls.length} note={`${metrics.recordedCalls.length} with dual-channel recording`} icon={<PhoneCall size={16} />} tone="blue" />
         <Stat label="Loan conversations" value={metrics.loan.length} note={`${metrics.loan.filter(s => s.outcome === 'proposed_settlement').length} settlement proposals`} icon={<WalletCards size={16} />} />
         <Stat label="Renewal conversations" value={metrics.insurance.length} note={`${metrics.insurance.filter(s => s.outcome === 'quote_accepted' || s.outcome === 'add_on_selected').length} quote decisions`} icon={<CreditCard size={16} />} tone="teal" />
       </div>

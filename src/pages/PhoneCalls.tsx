@@ -33,8 +33,9 @@ const CALL_STATUS_LABELS: Record<CallStatus, string> = {
   canceled: 'Canceled',
 }
 
-export default function PhoneCalls() {
+export default function PhoneCalls({ user }: { user?: User }) {
   const [activeTab, setActiveTab] = useState<'dialer' | 'demos' | 'history'>('dialer')
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'mine' | 'demos'>('all')
   const [bots, setBots] = useState<Bot[]>([])
   const [calls, setCalls] = useState<Call[]>([])
   const [config, setConfig] = useState<TelephonyConfig | null>(null)
@@ -238,8 +239,15 @@ export default function PhoneCalls() {
     return token ? `${base}?token=${encodeURIComponent(token)}` : base
   }
 
+  const userCalls = useMemo(() => {
+    if (!user) return calls
+    return calls.filter(c => c.userId === user.id)
+  }, [calls, user])
+
   const filteredCalls = useMemo(() => {
     return calls.filter(call => {
+      if (scopeFilter === 'mine' && user && call.userId !== user.id) return false
+      if (scopeFilter === 'demos' && !call.isDemo) return false
       const text = [
         call.id,
         call.toPhone,
@@ -253,7 +261,7 @@ export default function PhoneCalls() {
       if (statusFilter !== 'all' && call.status !== statusFilter) return false
       return true
     })
-  }, [calls, query, botFilter, statusFilter])
+  }, [calls, query, botFilter, statusFilter, scopeFilter, user])
 
   const demoCalls = useMemo(() => {
     const loanDemos = calls.filter(c => c.botId === 'loan' && (c.isDemo || c.hasRecording))
@@ -869,6 +877,11 @@ export default function PhoneCalls() {
               placeholder="Search phone number, transcript or ID"
             />
           </div>
+          <select className="select" value={scopeFilter} onChange={e => setScopeFilter(e.target.value as 'all' | 'mine' | 'demos')}>
+            <option value="all">All calls & demos ({calls.length})</option>
+            {user && <option value="mine">My placed calls ({userCalls.length})</option>}
+            <option value="demos">Assignment demos ({calls.filter(c => c.isDemo).length})</option>
+          </select>
           <select className="select" value={botFilter} onChange={e => setBotFilter(e.target.value)}>
             <option value="all">All bots</option>
             <option value="loan">Loan bot</option>
@@ -882,8 +895,8 @@ export default function PhoneCalls() {
             <option value="busy">Busy</option>
             <option value="no_answer">No answer</option>
           </select>
-          {(query || botFilter !== 'all' || statusFilter !== 'all') && (
-            <button className="btn ghost small" onClick={() => { setQuery(''); setBotFilter('all'); setStatusFilter('all') }}>
+          {(query || botFilter !== 'all' || statusFilter !== 'all' || scopeFilter !== 'all') && (
+            <button className="btn ghost small" onClick={() => { setQuery(''); setBotFilter('all'); setStatusFilter('all'); setScopeFilter('all') }}>
               <X size={13} /> Clear
             </button>
           )}
@@ -894,8 +907,8 @@ export default function PhoneCalls() {
         ) : filteredCalls.length === 0 ? (
           <div className="card-pad">
             <EmptyState
-              title={calls.length ? 'No calls match these filters' : 'No telephone calls recorded yet'}
-              body={calls.length ? 'Clear the filters to see all recorded calls.' : 'Start a test call from the Dialer tab or generate a demo call.'}
+              title={scopeFilter === 'mine' && userCalls.length === 0 ? 'No telephone calls placed by your account yet' : (calls.length ? 'No calls match these filters' : 'No telephone calls recorded yet')}
+              body={scopeFilter === 'mine' && userCalls.length === 0 ? 'Switch to the "Dialer & Active Call" tab to place your first live phone call, or choose "Assignment demos" to review pre-recorded submissions.' : (calls.length ? 'Clear the filters to see all recorded calls.' : 'Start a test call from the Dialer tab or generate a demo call.')}
             />
           </div>
         ) : (
@@ -920,6 +933,7 @@ export default function PhoneCalls() {
                     <td>
                       <strong>#{call.id.slice(0, 8)}</strong>
                       {call.isDemo && <span className="badge green small ml" style={{ marginLeft: '4px' }}>Demo</span>}
+                      {user && call.userId === user.id && !call.isDemo && <span className="badge blue small ml" style={{ marginLeft: '4px' }}>My Call</span>}
                     </td>
                     <td>{botLabel(call.botId)}</td>
                     <td><code>{call.toPhoneMasked}</code></td>

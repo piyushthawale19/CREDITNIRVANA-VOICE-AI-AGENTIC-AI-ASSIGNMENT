@@ -495,8 +495,8 @@ export function getCallByProviderId(providerCallId) {
   return db.prepare('SELECT * FROM calls WHERE provider_call_id = ?').get(providerCallId)
 }
 
-export function listCalls(userId, { botId, status, from, to, isDemo } = {}) {
-  let query = 'SELECT * FROM calls WHERE (user_id = ? OR is_demo = 1)'
+export function listCalls(userId, { botId, status, from, to, isDemo, mine } = {}) {
+  let query = mine ? 'SELECT * FROM calls WHERE user_id = ?' : 'SELECT * FROM calls WHERE (user_id = ? OR is_demo = 1)'
   const params = [userId]
 
   if (botId && botId !== 'all') {

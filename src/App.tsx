@@ -180,7 +180,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
         <Route path="/bots" element={<Bots />} />
         <Route path="/bots/:botId/configure" element={<BotConfig />} />
         <Route path="/bots/:botId/playground" element={<Playground status={status} />} />
-        <Route path="/calls" element={<PhoneCalls />} />
+        <Route path="/calls" element={<PhoneCalls user={user} />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/documentation" element={<Documentation />} />

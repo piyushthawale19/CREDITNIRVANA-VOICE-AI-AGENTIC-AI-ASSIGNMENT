@@ -343,7 +343,8 @@ app.get('/api/calls', auth, (req, res) => {
   const from = typeof req.query.from === 'string' ? req.query.from : undefined
   const to = typeof req.query.to === 'string' ? req.query.to : undefined
   const isDemo = req.query.isDemo !== undefined ? req.query.isDemo === 'true' : undefined
-  const calls = listCalls(req.user.id, { botId, status, from, to, isDemo })
+  const mine = req.query.mine !== undefined ? req.query.mine === 'true' : undefined
+  const calls = listCalls(req.user.id, { botId, status, from, to, isDemo, mine })
   res.json(calls)
 })
 
