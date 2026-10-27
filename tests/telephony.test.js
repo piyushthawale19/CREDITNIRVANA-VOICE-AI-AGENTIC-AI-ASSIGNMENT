@@ -67,6 +67,7 @@ before(async () => {
       SARVAM_API_KEY: '',
       DATABASE_PATH: databasePath,
       RECORDINGS_DIR: recordingsPath,
+      TELEPHONY_PROVIDER: 'mock',
       NODE_ENV: 'test',
     },
     stdio: ['ignore', 'pipe', 'pipe'],

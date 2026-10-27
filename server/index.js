@@ -72,7 +72,13 @@ const callLimiter = rateLimit({ windowMs: 60_000, limit: 15, standardHeaders: tr
 
 function tokenFor(user) { return jwt.sign({ sub: user.id, role: user.role }, secret, { expiresIn: '2h' }) }
 function setAuth(res, user) {
-  res.cookie('nirvana_token', tokenFor(user), { httpOnly: true, sameSite: 'lax', secure: isProduction, maxAge: 2 * 60 * 60 * 1000, path: '/' })
+  res.cookie('nirvana_token', tokenFor(user), {
+    httpOnly: true,
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
+    maxAge: 2 * 60 * 60 * 1000,
+    path: '/'
+  })
 }
 function auth(req, res, next) {
   try {
@@ -137,7 +143,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 })
 
 app.post('/api/auth/logout', (_req, res) => {
-  res.clearCookie('nirvana_token', { path: '/', httpOnly: true, sameSite: 'lax', secure: isProduction })
+  res.clearCookie('nirvana_token', { path: '/', httpOnly: true, sameSite: isProduction ? 'none' : 'lax', secure: isProduction })
   res.json({ ok: true })
 })
 app.get('/api/auth/me', auth, (req, res) => res.json({ user: publicUser(req.user) }))

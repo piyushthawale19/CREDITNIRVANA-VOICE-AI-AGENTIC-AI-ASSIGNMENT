@@ -4,7 +4,7 @@ import {
   ArrowRight, Check, CreditCard, Headphones, Loader2, Mic, Pause, PhoneCall, PhoneOff, Radio, RefreshCw, RotateCcw, Send,
   Settings, ShieldAlert, Square, Volume2, WalletCards,
 } from 'lucide-react'
-import { api } from '../api'
+import { api, apiUrl } from '../api'
 import type { Bot, Call, IntegrationStatus, Message, RespondResult, Session } from '../types'
 import { Badge, ErrorBanner, LoadingCard, PageHead, botLabel, formatDate, formatDateTime, formatDuration, money, splitFlags } from '../ui'
 
@@ -130,7 +130,7 @@ export default function Playground({ status: initialStatus }: { status: Integrat
     if (!voiceAvailable || !bot) return
     setPhase('speaking')
     try {
-      const response = await fetch('/api/voice/speak', {
+      const response = await fetch(apiUrl('/api/voice/speak'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'content-type': 'application/json' },
@@ -191,7 +191,7 @@ export default function Playground({ status: initialStatus }: { status: Integrat
         setPhase('processing')
         setVoiceNote('Transcribing with Sarvam…')
         try {
-          const response = await fetch('/api/voice/transcribe', {
+          const response = await fetch(apiUrl('/api/voice/transcribe'), {
             method: 'POST',
             credentials: 'include',
             headers: { 'content-type': cleanMime, 'x-filename': 'voice.webm', 'x-language': bot?.config.language || 'en-IN' },
