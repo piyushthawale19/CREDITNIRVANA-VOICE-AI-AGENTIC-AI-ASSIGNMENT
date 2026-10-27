@@ -3,8 +3,9 @@ import bcrypt from 'bcryptjs'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const databasePath = process.env.DATABASE_PATH || './data/nirvana.sqlite'
+const databasePath = path.resolve(process.env.DATABASE_PATH || './data/nirvana.sqlite')
 fs.mkdirSync(path.dirname(databasePath), { recursive: true })
+console.log('[SQLite] Database path:', databasePath)
 export const db = new Database(databasePath)
 db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = ON')
