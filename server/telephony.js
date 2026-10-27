@@ -284,15 +284,15 @@ export async function runMockCallLifecycle(callId, botId, _phone) {
 
       const scriptTurns = botId === 'loan'
         ? [
-            { customer: 'Hello, yes this is Rakesh speaking.', delay: 2500 },
-            { customer: 'I lost my job 8 months ago. Can I settle for 4 lakh on 15 November?', delay: 4000 },
-            { customer: 'Okay, please record that settlement proposal. I will arrange 4 lakh by 15 November.', delay: 4000 },
-          ]
+          { customer: 'Hello, yes this is Rakesh speaking.', delay: 2500 },
+          { customer: 'I lost my job 8 months ago. Can I settle for 4 lakh on 15 November?', delay: 4000 },
+          { customer: 'Okay, please record that settlement proposal. I will arrange 4 lakh by 15 November.', delay: 4000 },
+        ]
         : [
-            { customer: 'Yes, this is Rakesh. What is the renewal offer for my Brezza?', delay: 2500 },
-            { customer: 'Why did the IDV decrease from 9 lakh to 8 lakh?', delay: 4000 },
-            { customer: 'Understood. I agree to proceed and accept the 15,000 quote.', delay: 4000 },
-          ]
+          { customer: 'Yes, this is Rakesh. What is the renewal offer for my Brezza?', delay: 2500 },
+          { customer: 'Why did the IDV decrease from 9 lakh to 8 lakh?', delay: 4000 },
+          { customer: 'Understood. I agree to proceed and accept the 15,000 quote.', delay: 4000 },
+        ]
 
       let currentTranscript = JSON.parse(call.transcript_json || '[]')
       const bot = getBot(botId)
@@ -347,10 +347,7 @@ export async function runMockCallLifecycle(callId, botId, _phone) {
   }, 4000)
 }
 
-/**
- * Synthesizes or constructs a real playable WAV audio file with standard headers
- * so browser <audio> elements and downloads work flawlessly.
- */
+
 export async function createPlayableRecordingFile(callId, transcript, botId) {
   const filePath = path.join(RECORDINGS_DIR, `${callId}.wav`)
 
