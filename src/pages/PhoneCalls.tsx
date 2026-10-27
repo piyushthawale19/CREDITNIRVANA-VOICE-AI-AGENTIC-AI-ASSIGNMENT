@@ -7,7 +7,7 @@ import {
   Radio, RefreshCw, RotateCcw, Search, ShieldAlert, ShieldCheck, Sparkles,
   Square, Trash2, UserCheck, Volume2, WalletCards, X, XCircle,
 } from 'lucide-react'
-import { api, apiUrl } from '../api'
+import { api, apiUrl, getStoredToken } from '../api'
 import type { Bot, Call, CallStatus, Message, TelephonyConfig, User } from '../types'
 import { Badge, EmptyState, ErrorBanner, LoadingCard, PageHead, botLabel, formatDateTime, formatDuration, humanise, money, outcomeLabel, splitFlags } from '../ui'
 
@@ -216,7 +216,11 @@ export default function PhoneCalls() {
     if (audioPlayerRef.current) {
       audioPlayerRef.current.pause()
     }
-    const audioSrc = call.recordingUrl.startsWith('http') ? call.recordingUrl : apiUrl(call.recordingUrl)
+    const token = getStoredToken()
+    let audioSrc = call.recordingUrl.startsWith('http') ? call.recordingUrl : apiUrl(call.recordingUrl)
+    if (token) {
+      audioSrc += (audioSrc.includes('?') ? '&' : '?') + `token=${encodeURIComponent(token)}`
+    }
     const audio = new Audio(audioSrc)
     audioPlayerRef.current = audio
     setPlayingCallId(call.id)
@@ -226,6 +230,12 @@ export default function PhoneCalls() {
       setPlayingCallId(null)
     }
     audio.play().catch(e => console.warn('Play error:', e.message))
+  }
+
+  function getDownloadUrl(callId: string) {
+    const token = getStoredToken()
+    const base = apiUrl(`/api/calls/${callId}/recording/download`)
+    return token ? `${base}?token=${encodeURIComponent(token)}` : base
   }
 
   const filteredCalls = useMemo(() => {
@@ -513,7 +523,7 @@ export default function PhoneCalls() {
                     {activeCall.hasRecording && (
                       <a
                         className="btn ghost small"
-                        href={apiUrl(`/api/calls/${activeCall.id}/recording/download`)}
+                        href={getDownloadUrl(activeCall.id)}
                         download
                       >
                         <Download size={14} /> Download Audio
@@ -678,7 +688,7 @@ export default function PhoneCalls() {
 
                     <a
                       className="btn small"
-                      href={apiUrl(`/api/calls/${demoCalls.loan.id}/recording/download`)}
+                      href={getDownloadUrl(demoCalls.loan.id)}
                       download
                     >
                       <Download size={14} /> Download Audio (.wav)
@@ -793,7 +803,7 @@ export default function PhoneCalls() {
 
                     <a
                       className="btn small"
-                      href={apiUrl(`/api/calls/${demoCalls.insurance.id}/recording/download`)}
+                      href={getDownloadUrl(demoCalls.insurance.id)}
                       download
                     >
                       <Download size={14} /> Download Audio (.wav)
@@ -933,7 +943,7 @@ export default function PhoneCalls() {
                           </button>
                           <a
                             className="btn ghost small"
-                            href={apiUrl(`/api/calls/${call.id}/recording/download`)}
+                            href={getDownloadUrl(call.id)}
                             download
                             title="Download Recording"
                           >
@@ -984,7 +994,7 @@ export default function PhoneCalls() {
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             {inspectCall.hasRecording && (
-              <a className="btn small" href={apiUrl(`/api/calls/${inspectCall.id}/recording/download`)} download>
+              <a className="btn small" href={getDownloadUrl(inspectCall.id)} download>
                 <Download size={13} /> Download Recording
               </a>
             )}

@@ -346,9 +346,23 @@ export function maskPhone(phone) {
   return `${trimmed.slice(0, 2)}***${trimmed.slice(-3)}`
 }
 
+export function resolveRecordingPath(rawPath) {
+  if (!rawPath) return null
+  if (fs.existsSync(rawPath)) return rawPath
+  const basename = path.basename(rawPath)
+  const candidate1 = path.join(RECORDINGS_DIR, basename)
+  if (fs.existsSync(candidate1)) return candidate1
+  const candidate2 = path.resolve(RECORDINGS_DIR, basename)
+  if (fs.existsSync(candidate2)) return candidate2
+  const candidate3 = path.resolve('./data/recordings', basename)
+  if (fs.existsSync(candidate3)) return candidate3
+  return null
+}
+
 export function mapCall(row) {
   if (!row) return null
-  const hasRecordingFile = Boolean(row.recording_path && fs.existsSync(row.recording_path))
+  const resolvedPath = resolveRecordingPath(row.recording_path)
+  const hasRecordingFile = Boolean(resolvedPath)
   return {
     id: row.id,
     userId: row.user_id,

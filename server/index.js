@@ -13,7 +13,7 @@ import { z } from 'zod'
 import {
   db, publicUser, getBot, mapBot, mapSession, mapVersion, mapCall, createCall, updateCall,
   getCall, getCallById, getCallByProviderId, listCalls, deleteCallRecording, setDemoStatus,
-  RECORDINGS_DIR, DEFAULT_PROMPTS, DEFAULT_CONFIG, BOT_META
+  RECORDINGS_DIR, resolveRecordingPath, DEFAULT_PROMPTS, DEFAULT_CONFIG, BOT_META
 } from './db.js'
 import { respond } from './agent.js'
 import { sarvamStatus, synthesize, transcribeAudio, testConnection } from './sarvam.js'
@@ -365,11 +365,11 @@ app.post('/api/calls/:id/hangup', auth, async (req, res) => {
 app.get('/api/calls/:id/recording', auth, (req, res) => {
   const callRow = db.prepare('SELECT * FROM calls WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id)
   if (!callRow) return res.status(404).json({ error: 'Call not found.' })
-  if (!callRow.recording_path || !fs.existsSync(callRow.recording_path)) {
+  const filePath = resolveRecordingPath(callRow.recording_path)
+  if (!filePath) {
     return res.status(404).json({ error: 'No recording file exists for this call.' })
   }
 
-  const filePath = callRow.recording_path
   const stat = fs.statSync(filePath)
   const fileSize = stat.size
   const ext = path.extname(filePath).toLowerCase()
@@ -406,13 +406,14 @@ app.get('/api/calls/:id/recording', auth, (req, res) => {
 app.get('/api/calls/:id/recording/download', auth, (req, res) => {
   const callRow = db.prepare('SELECT * FROM calls WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id)
   if (!callRow) return res.status(404).json({ error: 'Call not found.' })
-  if (!callRow.recording_path || !fs.existsSync(callRow.recording_path)) {
+  const filePath = resolveRecordingPath(callRow.recording_path)
+  if (!filePath) {
     return res.status(404).json({ error: 'No recording file exists for this call.' })
   }
 
-  const ext = path.extname(callRow.recording_path) || '.wav'
+  const ext = path.extname(filePath) || '.wav'
   const filename = `nirvana-${callRow.bot_id}-call-${callRow.id.slice(0, 8)}${ext}`
-  res.download(callRow.recording_path, filename)
+  res.download(filePath, filename)
 })
 
 // Delete recording (retention / privacy compliance)
