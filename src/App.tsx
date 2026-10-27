@@ -5,7 +5,7 @@ import {
   Activity, ArrowRight, BarChart3, Bot as BotIcon, ChevronRight, Eye, EyeOff, FileText, History,
   LayoutDashboard, LogOut, Menu, PhoneCall, RefreshCw, Settings, ShieldCheck, X,
 } from 'lucide-react'
-import { api } from './api'
+import { api, setStoredToken } from './api'
 import type { IntegrationStatus, User } from './types'
 import { IntegrationPill, Logo } from './ui'
 import Dashboard from './pages/Dashboard'
@@ -43,10 +43,11 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
     if (!validate()) return
     setLoading(true)
     try {
-      const data = await api<{ user: User }>(`/api/auth/${mode}`, {
+      const data = await api<{ user: User; token?: string }>(`/api/auth/${mode}`, {
         method: 'POST',
         body: JSON.stringify(mode === 'login' ? { email: email.trim(), password } : { name: name.trim(), email: email.trim(), password }),
       })
+      if (data.token) setStoredToken(data.token)
       onLogin(data.user)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to continue.')
@@ -197,13 +198,23 @@ export default function App() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    api<{ user: User }>('/api/auth/me').then(data => setUser(data.user)).catch(() => setUser(null)).finally(() => setChecking(false))
+    api<{ user: User; token?: string }>('/api/auth/me')
+      .then(data => {
+        if (data.token) setStoredToken(data.token)
+        setUser(data.user)
+      })
+      .catch(() => {
+        setStoredToken(null)
+        setUser(null)
+      })
+      .finally(() => setChecking(false))
   }, [])
 
   if (checking) return <div className="app-loading"><RefreshCw className="spin" size={22} /><span>Checking your session…</span></div>
   if (!user) return <Login onLogin={user => { setUser(user); navigate('/') }} />
   return <Shell user={user} onLogout={async () => {
     try { await api('/api/auth/logout', { method: 'POST' }) } catch { /* the cookie is cleared client-side regardless */ }
+    setStoredToken(null)
     setUser(null)
     navigate('/')
   }} />

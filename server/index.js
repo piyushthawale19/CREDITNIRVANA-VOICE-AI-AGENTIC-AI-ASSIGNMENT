@@ -37,9 +37,24 @@ if (!process.env.JWT_SECRET) console.warn('JWT_SECRET is not set; using an ephem
 const allowedOrigins = (process.env.APP_ORIGIN || 'http://localhost:5173,http://localhost:4173,http://localhost:8787')
   .split(',').map(origin => origin.trim()).filter(Boolean)
 
+function isOriginAllowed(origin) {
+  if (!origin) return true
+  if (allowedOrigins.includes(origin)) return true
+  try {
+    const { hostname } = new URL(origin)
+    if (hostname.endsWith('.vercel.app') || hostname === 'localhost' || hostname === '127.0.0.1') return true
+  } catch {}
+  return false
+}
+
 app.disable('x-powered-by')
 app.use(helmet({ crossOriginResourcePolicy: false }))
-app.use(cors({ origin: allowedOrigins, credentials: true }))
+app.use(cors({
+  origin: (origin, callback) => {
+    callback(null, isOriginAllowed(origin))
+  },
+  credentials: true
+}))
 app.use(express.json({ limit: '256kb' }))
 app.use(express.urlencoded({ extended: true, limit: '256kb' }))
 
@@ -53,13 +68,12 @@ app.use((req, _res, next) => {
   next()
 })
 
-// Browsers always send Origin on cross-site mutations. Rejecting unknown origins is a
-// cheap CSRF layer on top of the SameSite=Lax cookie.
+// Browsers always send Origin on cross-site mutations.
 app.use('/api', (req, res, next) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
   if (req.path.startsWith('/telephony/webhook')) return next()
   const origin = req.headers.origin
-  if (origin && !allowedOrigins.includes(origin)) return res.status(403).json({ error: 'Origin not allowed.' })
+  if (origin && !isOriginAllowed(origin)) return res.status(403).json({ error: 'Origin not allowed.' })
   next()
 })
 
@@ -124,7 +138,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     const result = db.prepare('INSERT INTO users (name,email,password_hash) VALUES (?,?,?)').run(parsed.data.name, parsed.data.email, hash)
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid)
     setAuth(res, user)
-    return res.status(201).json({ user: publicUser(user) })
+    const token = tokenFor(user)
+    return res.status(201).json({ user: publicUser(user), token })
   } catch {
     return res.status(409).json({ error: 'That email is already registered.' })
   }
@@ -139,14 +154,15 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   const matches = await bcrypt.compare(parsed.data.password, hash)
   if (!user || !matches) return res.status(401).json({ error: 'Invalid email or password.' })
   setAuth(res, user)
-  res.json({ user: publicUser(user) })
+  const token = tokenFor(user)
+  res.json({ user: publicUser(user), token })
 })
 
 app.post('/api/auth/logout', (_req, res) => {
   res.clearCookie('nirvana_token', { path: '/', httpOnly: true, sameSite: isProduction ? 'none' : 'lax', secure: isProduction })
   res.json({ ok: true })
 })
-app.get('/api/auth/me', auth, (req, res) => res.json({ user: publicUser(req.user) }))
+app.get('/api/auth/me', auth, (req, res) => res.json({ user: publicUser(req.user), token: tokenFor(req.user) }))
 
 app.get('/api/bots', auth, (_req, res) => res.json(db.prepare('SELECT * FROM bots ORDER BY id').all().map(mapBot)))
 app.get('/api/bots/:id', auth, (req, res) => {

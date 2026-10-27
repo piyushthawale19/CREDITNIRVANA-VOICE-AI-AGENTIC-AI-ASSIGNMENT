@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node node_modules/concurrently/dist/bin/index.js -k -n api,ui \"node server/index.js\" \"node node_modules/vite/bin/vite.js --host 0.0.0.0\"",
-    "build": "npx vite build",
-    "vercel-build": "npx vite build",
+    "build": "vite build",
+    "vercel-build": "vite build",
     "start": "node server/index.js",
     "test": "node --test --test-concurrency=1 tests/agent.test.js tests/api.test.js tests/telephony.test.js",
     "lint": "tsc --noEmit",
