@@ -1,0 +1,85 @@
+/* ============================================================
+   Nirvana Voice Studio — renewed motion tokens
+   PURPOSE: small, tasteful entrance and micro-interaction
+   animations used across the renewed interface.
+   SCOPE: entrance, hover feedback, state transitions only.
+   ============================================================ */
+
+@keyframes nv-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes nv-fade-in-right {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes nv-scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes nv-pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(1.28); opacity: 0.7; }
+}
+
+@keyframes nv-float-soft {
+  from { transform: translateY(0); }
+  50%  { transform: translateY(-3px); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes nv-shimmer {
+  from { background-position: -240px 0; }
+  to   { background-position: 240px 0; }
+}
+
+/* ---------- Entrance variants ---------- */
+
+.nv-fade-in {
+  animation: nv-fade-in 280ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.nv-fade-in-right {
+  animation: nv-fade-in-right 300ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.nv-scale-in {
+  animation: nv-scale-in 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Stagger children on a container */
+.nv-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.nv-stagger > *:nth-child(2) { animation-delay: 50ms; }
+.nv-stagger > *:nth-child(3) { animation-delay: 100ms; }
+.nv-stagger > *:nth-child(4) { animation-delay: 150ms; }
+.nv-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.nv-stagger > *:nth-child(6) { animation-delay: 250ms; }
+
+/* ---------- Pulse dot ---------- */
+.nv-pulse-dot {
+  animation: nv-pulse-dot 1.2s ease-in-out infinite;
+}
+
+/* ---------- Shimmer skeleton ---------- */
+.nv-skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #f8fafc 50%, #f1f5f9 75%);
+  background-size: 240px 100%;
+  animation: nv-shimmer 1.4s ease-in-out infinite;
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .nv-fade-in,
+  .nv-fade-in-right,
+  .nv-scale-in,
+  .nv-stagger > *,
+  .nv-pulse-dot,
+  .nv-float-soft,
+  .nv-skeleton {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+  }
+}
